@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estadísticas Globales — ONPE 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue: #003770; --red: #c0392b; --bg: #f4f6f9; --card: #fff;
+    --border: #dde3ed; --text: #1a1b1f; --muted: #6b7280;
+    --green: #16a34a; --amber: #d97706; --purple: #7c3aed;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, Arial, sans-serif; background: var(--bg); color: var(--text); }
+
+  header {
+    background: var(--blue); color: #fff; padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+  .logo { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .logo span { color: #f59e0b; }
+  .header-nav { display: flex; gap: 8px; margin-left: auto; }
+  .nav-link {
+    padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    text-decoration: none; color: rgba(255,255,255,.8);
+    border: 1.5px solid rgba(255,255,255,.3); transition: all .2s;
+  }
+  .nav-link:hover, .nav-link.active { background: rgba(255,255,255,.15); color: #fff; }
+
+  main { max-width: 1200px; margin: 32px auto; padding: 0 16px; }
+
+  h2.section { font-size: 22px; font-weight: 700; color: var(--blue); margin-bottom: 20px; }
+
+  /* Stat cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .card {
+    background: var(--card); border-radius: 12px; padding: 20px;
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .card-value { font-size: 30px; font-weight: 800; line-height: 1; }
+  .card-value.blue   { color: var(--blue); }
+  .card-value.green  { color: var(--green); }
+  .card-value.red    { color: var(--red); }
+  .card-value.purple { color: var(--purple); }
+  .card-value.amber  { color: var(--amber); }
+  .card-label { font-size: 12px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: .4px; }
+
+  /* Scraper panel */
+  .scraper-panel {
+    background: var(--card); border-radius: 12px; padding: 24px;
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    margin-bottom: 32px;
+  }
+  .scraper-panel h3 { font-size: 16px; font-weight: 700; color: var(--blue); margin-bottom: 16px; }
+  .scraper-controls { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 12px; font-weight: 500; color: var(--muted); }
+  input[type="number"] {
+    height: 38px; border: 1.5px solid var(--border); border-radius: 7px;
+    padding: 0 12px; font-size: 14px; width: 120px; color: var(--text);
+    transition: border-color .2s;
+  }
+  input[type="number"]:focus { outline: none; border-color: var(--blue); }
+  .btn {
+    height: 38px; padding: 0 20px; border: none; border-radius: 7px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s;
+  }
+  .btn-start  { background: var(--green); color: #fff; }
+  .btn-start:hover { background: #15803d; }
+  .btn-stop   { background: var(--red); color: #fff; }
+  .btn-stop:hover { background: #991b1b; }
+  .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  .progress-wrap { margin-top: 8px; }
+  .progress-info { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .progress-bg { background: #e2e8f0; border-radius: 6px; height: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 6px; transition: width .5s; }
+
+  .status-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 600; margin-left: 8px;
+  }
+  .status-pill.running { background: #dcfce7; color: var(--green); }
+  .status-pill.idle    { background: #f1f5f9; color: var(--muted); }
+  .status-pill.done    { background: #dbeafe; color: #1d4ed8; }
+  .status-pill.stopped { background: #fef3c7; color: var(--amber); }
+
+  /* Charts grid */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+  @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--card); border-radius: 12px; padding: 20px 22px;
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .chart-card.wide { grid-column: 1 / -1; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .4px; }
+  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .election-select {
+    font-size: 12px; border: 1.5px solid var(--border); border-radius: 6px;
+    padding: 4px 8px; background: var(--bg); color: var(--text); cursor: pointer;
+  }
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-wrap.tall { height: 380px; }
+
+  /* Table */
+  .table-card {
+    background: var(--card); border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    margin-bottom: 32px;
+  }
+  .table-card h3 {
+    font-size: 13px; font-weight: 600; color: var(--muted); padding: 14px 18px;
+    text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f8fafc; text-align: left; padding: 9px 14px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  th.num { text-align: right; }
+  td { padding: 9px 14px; font-size: 13px; border-bottom: 1px solid #f1f5f9; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:hover td { background: #f8fafc; }
+  .mini-bar { display: flex; align-items: center; gap: 8px; }
+  .mini-bar-bg { flex: 1; background: #e2e8f0; border-radius: 3px; height: 6px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; background: var(--blue); border-radius: 3px; }
+  .rank { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 700; background: #e2e8f0; color: var(--muted); margin-right: 4px; }
+  .rank.g { background: #fbbf24; color: #78350f; }
+  .rank.s { background: #cbd5e1; color: #334155; }
+  .rank.b { background: #d97706; color: #fff; }
+
+  .loading { color: var(--muted); font-size: 13px; text-align: center; padding: 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ONPE<span>.</span></div>
+  <div style="flex:1">
+    <div style="font-size:17px;font-weight:600">Estadísticas Globales — EG 2026</div>
+    <div style="font-size:12px;opacity:.7;margin-top:2px">Resultados agregados de todas las mesas</div>
+  </div>
+  <nav class="header-nav">
+    <a href="/" class="nav-link">Buscar Mesa</a>
+    <a href="/stats" class="nav-link active">Estadísticas</a>
+  </nav>
+</header>
+
+<main>
+  <!-- KPI cards -->
+  <div class="cards" id="kpiCards">
+    <div class="card"><div class="card-value blue" id="kMesas">—</div><div class="card-label">Mesas en BD</div></div>
+    <div class="card"><div class="card-value green" id="kPart">—</div><div class="card-label">Participación Promedio</div></div>
+    <div class="card"><div class="card-value blue" id="kElectores">—</div><div class="card-label">Electores Hábiles</div></div>
+    <div class="card"><div class="card-value purple" id="kEmitidos">—</div><div class="card-label">Votos Emitidos</div></div>
+    <div class="card"><div class="card-value amber" id="kValidos">—</div><div class="card-label">Votos Válidos</div></div>
+    <div class="card"><div class="card-value green" id="kContabilizadas">—</div><div class="card-label">Actas Contabilizadas</div></div>
+  </div>
+
+  <!-- Scraper panel -->
+  <div class="scraper-panel">
+    <h3>
+      Recolector de Datos
+      <span class="status-pill idle" id="scraperPill">idle</span>
+    </h3>
+    <div class="scraper-controls">
+      <div class="field"><label>Desde (código)</label><input type="number" id="scraperStart" value="1" min="1" max="999999"></div>
+      <div class="field"><label>Hasta (código)</label><input type="number" id="scraperEnd" value="89999" min="1" max="999999"></div>
+      <div class="field"><label>Hilos concurrentes</label><input type="number" id="scraperWorkers" value="20" min="1" max="50"></div>
+      <button class="btn btn-start" id="btnStart" onclick="startScraper()">▶ Iniciar</button>
+      <button class="btn btn-stop" id="btnStop" onclick="stopScraper()" disabled>■ Detener</button>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-info">
+        <span id="scraperInfo">Sin datos recolectados todavía</span>
+        <span id="scraperPct">0%</span>
+      </div>
+      <div class="progress-bg"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card wide">
+      <div class="chart-header">
+        <div class="chart-title">Votos por Organización Política</div>
+        <select class="election-select" id="eleccionSelect" onchange="loadParties()">
+          <option value="10">Presidencial</option>
+          <option value="15">Senadores 33</option>
+          <option value="14">Senadores DEM</option>
+          <option value="13">Senadores DEU</option>
+          <option value="12">Parlamento Andino</option>
+        </select>
+      </div>
+      <div class="chart-wrap tall"><canvas id="chartParties"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Distribución de Participación</div>
+      <div class="chart-wrap"><canvas id="chartPart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Estado de Actas</div>
+      <div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Rankings table -->
+  <div class="table-card">
+    <h3 id="tableTitle">Ranking de Partidos — Presidencial</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Organización Política</th>
+          <th class="num">Votos Totales</th>
+          <th>% Promedio</th>
+          <th class="num">Mesas con Votos</th>
+        </tr>
+      </thead>
+      <tbody id="partiesTable"><tr><td colspan="5" class="loading">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+let chartParties = null, chartPart = null, chartStatus = null;
+let partiesData = [];
+let pollTimer = null;
+
+const fmt = n => (n||0).toLocaleString('es-PE');
+const pct  = n => (n||0).toFixed(1) + '%';
+
+async function loadOverview() {
+  const r = await fetch('/api/stats/overview');
+  const d = await r.json();
+
+  document.getElementById('kMesas').textContent          = fmt(d.total_mesas);
+  document.getElementById('kPart').textContent           = pct(d.avg_participacion);
+  document.getElementById('kElectores').textContent      = fmt(d.total_electores);
+  document.getElementById('kEmitidos').textContent       = fmt(d.total_emitidos);
+  document.getElementById('kValidos').textContent        = fmt(d.total_validos);
+  document.getElementById('kContabilizadas').textContent = fmt(d.contabilizadas);
+
+  updateScraperUI(d.scraper);
+}
+
+function updateScraperUI(s) {
+  const pill = document.getElementById('scraperPill');
+  pill.textContent = s.status;
+  pill.className   = `status-pill ${s.status}`;
+
+  const total = s.range_end - 0;
+  const done  = s.total_scanned || 0;
+  const p     = total > 0 ? Math.min(100, (done / total * 100)) : 0;
+
+  document.getElementById('progressFill').style.width = p.toFixed(1) + '%';
+  document.getElementById('scraperPct').textContent   = p.toFixed(1) + '%';
+  document.getElementById('scraperInfo').textContent  =
+    `Escaneadas: ${fmt(done)} | Encontradas: ${fmt(s.total_found)} | Código actual: ${String(s.current_code||0).padStart(6,'0')}`;
+
+  const running = s.status === 'running';
+  document.getElementById('btnStart').disabled = running;
+  document.getElementById('btnStop').disabled  = !running;
+}
+
+async function loadParties() {
+  const eid = document.getElementById('eleccionSelect').value;
+  const r = await fetch(`/api/stats/parties?eleccion=${eid}&limit=30`);
+  partiesData = await r.json();
+
+  const labels = partiesData.map(p => p.partido?.length > 35 ? p.partido.slice(0,33)+'…' : p.partido);
+  const values = partiesData.map(p => p.votos);
+  const maxVal = Math.max(...values, 1);
+  const colors = labels.map((_, i) => `hsl(${(i*23+210)%360},60%,45%)`);
+
+  if (chartParties) { chartParties.destroy(); chartParties = null; }
+  if (!values.length) return;
+
+  chartParties = new Chart(document.getElementById('chartParties').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Votos totales', data: values, backgroundColor: colors, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.raw)} votos` } }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+
+  // Update table
+  const names = { '10':'Presidencial','15':'Senadores 33','14':'Senadores DEM','13':'Senadores DEU','12':'Parlamento Andino' };
+  document.getElementById('tableTitle').textContent = `Ranking de Partidos — ${names[eid] || eid}`;
+  const tbody = document.getElementById('partiesTable');
+  if (!partiesData.length) { tbody.innerHTML = '<tr><td colspan="5" class="loading">Sin datos</td></tr>'; return; }
+  tbody.innerHTML = partiesData.map((p,i) => `
+    <tr>
+      <td><span class="rank ${i===0?'g':i===1?'s':i===2?'b':''}">${i+1}</span></td>
+      <td>${esc(p.partido)}</td>
+      <td class="num"><strong>${fmt(p.votos)}</strong></td>
+      <td>
+        <div class="mini-bar">
+          <span style="min-width:46px">${(p.pct||0).toFixed(2)}%</span>
+          <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${(p.votos/maxVal*100).toFixed(1)}%"></div></div>
+        </div>
+      </td>
+      <td class="num">—</td>
+    </tr>`).join('');
+}
+
+async function loadParticipation() {
+  const r = await fetch('/api/stats/participation');
+  const d = await r.json();
+  if (!d.length) return;
+
+  const colors = ['#ef4444','#f97316','#eab308','#22c55e','#16a34a','#15803d'];
+  if (chartPart) { chartPart.destroy(); chartPart = null; }
+  chartPart = new Chart(document.getElementById('chartPart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: d.map(x => x.bucket),
+      datasets: [{ label: 'Mesas', data: d.map(x => x.count), backgroundColor: colors, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#f1f5f9' } } }
+    }
+  });
+}
+
+async function loadActaStatus() {
+  const r = await fetch('/api/stats/acta_status');
+  const d = await r.json();
+  if (!d.length) return;
+
+  const statusColors = { 'C': '#16a34a', 'P': '#d97706', '?': '#94a3b8' };
+  const statusLabels = { 'C': 'Contabilizadas', 'P': 'Pendientes', '?': 'Sin estado' };
+  if (chartStatus) { chartStatus.destroy(); chartStatus = null; }
+  chartStatus = new Chart(document.getElementById('chartStatus').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: d.map(x => statusLabels[x.estado] || x.estado),
+      datasets: [{ data: d.map(x => x.count), backgroundColor: d.map(x => statusColors[x.estado] || '#94a3b8'), borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.raw)} mesas` } }
+      }
+    }
+  });
+}
+
+async function startScraper() {
+  const start   = parseInt(document.getElementById('scraperStart').value);
+  const end     = parseInt(document.getElementById('scraperEnd').value);
+  const workers = parseInt(document.getElementById('scraperWorkers').value);
+  await fetch('/api/scraper/start', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({start,end,workers}) });
+  pollScraper();
+}
+
+async function stopScraper() {
+  await fetch('/api/scraper/stop', { method: 'POST' });
+}
+
+function pollScraper() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const r = await fetch('/api/scraper/status');
+    const s = await r.json();
+    updateScraperUI(s);
+    loadOverview();
+    loadParties();
+    loadParticipation();
+    loadActaStatus();
+    if (!s.running && s.status !== 'running') {
+      clearInterval(pollTimer);
+    }
+  }, 3000);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function init() {
+  await loadOverview();
+  await Promise.all([loadParties(), loadParticipation(), loadActaStatus()]);
+  // Auto-poll if scraper is already running
+  const r = await fetch('/api/scraper/status');
+  const s = await r.json();
+  if (s.running || s.status === 'running') pollScraper();
+}
+
+init();
+</script>
+</body>
+</html>
