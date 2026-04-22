@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:resultadoelectoral.onpe.gob.pe)",
+      "Bash(curl -s \"https://resultadoelectoral.onpe.gob.pe/presentacion-backend/actas/buscar/mesa?codigoMesa=900234\" -H \"Accept: application/json\")",
+      "Bash(curl -s \"https://resultadoelectoral.onpe.gob.pe/presentacion-backend/actas/buscar/mesa?codigoMesa=900234\" -H \"Accept: application/json\" -H \"X-Requested-With: XMLHttpRequest\")",
+      "Bash(curl -s \"https://resultadoelectoral.onpe.gob.pe/main-QATEOCH2.js\")",
+      "Bash(grep -oE '\"[^\"]{0,50}\\(actas|mesa|elec\\)[^\"]{0,50}\"')",
+      "Bash(curl -s \"https://resultadoelectoral.onpe.gob.pe/main-QATEOCH2.js\" -o /tmp/onpe_main.js)",
+      "Read(//tmp/**)",
+      "Bash(grep -oE '[a-zA-Z0-9/._-]{3,50}\\(actas|mesa|buscar\\)[a-zA-Z0-9/._-]{0,50}' /tmp/onpe_main.js)",
+      "Bash(curl -s -A \"Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36\" \"https://resultadoelectoral.onpe.gob.pe/main-QATEOCH2.js\" -o /tmp/main_js.js)",
+      "Bash(grep -oE '\"https?://[^\"]{5,150}\"' /tmp/main_js.js)",
+      "Bash(grep -oE \"'[^']{5,100}\\(api|backend|actas|mesa|buscar|onpe\\)[^']{0,100}'\" /tmp/main_js.js)",
+      "Bash(grep -oE '\"[^\"]{5,100}\\(api|backend|actas|mesa|buscar\\)[^\"]{0,100}\"' /tmp/main_js.js)"
+    ]
+  }
+}

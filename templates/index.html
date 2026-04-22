@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resultados por Mesa — ONPE 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --onpe-blue: #003770;
+    --onpe-red: #c0392b;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --border: #dde3ed;
+    --text: #1a1b1f;
+    --muted: #6b7280;
+    --green: #16a34a;
+    --amber: #d97706;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--onpe-blue);
+    color: white;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  }
+
+  .header-logo {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    color: #fff;
+  }
+
+  .header-logo span { color: #f59e0b; }
+
+  .header-title {
+    flex: 1;
+  }
+
+  .header-title h1 { font-size: 18px; font-weight: 600; }
+  .header-title p  { font-size: 12px; opacity: .75; margin-top: 2px; }
+
+  main {
+    max-width: 960px;
+    margin: 32px auto;
+    padding: 0 16px;
+  }
+
+  .search-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+
+  .search-card h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--onpe-blue);
+    margin-bottom: 16px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  label { font-size: 13px; font-weight: 500; color: var(--muted); }
+
+  input[type="text"] {
+    height: 44px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 22px;
+    letter-spacing: 6px;
+    width: 180px;
+    color: var(--onpe-blue);
+    font-weight: 700;
+    transition: border-color .2s;
+  }
+
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--onpe-blue);
+  }
+
+  button {
+    height: 44px;
+    padding: 0 28px;
+    background: var(--onpe-blue);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+  }
+
+  button:hover { background: #004fa0; }
+  button:active { transform: scale(.97); }
+  button:disabled { background: #94a3b8; cursor: not-allowed; }
+
+  .error-msg {
+    color: var(--onpe-red);
+    font-size: 13px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .results { display: none; }
+
+  /* Election tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    color: var(--muted);
+    transition: all .2s;
+  }
+
+  .tab.active {
+    background: var(--onpe-blue);
+    color: white;
+    border-color: var(--onpe-blue);
+  }
+
+  /* Mesa info card */
+  .info-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+
+  .info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .info-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--onpe-blue);
+  }
+
+  .info-location {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .status-badge.ok    { background: #dcfce7; color: var(--green); }
+  .status-badge.warn  { background: #fef3c7; color: var(--amber); }
+  .status-badge.info  { background: #dbeafe; color: #1d4ed8; }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--onpe-blue);
+    line-height: 1;
+  }
+
+  .stat-value.pct { color: var(--green); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+
+  /* Participation bar */
+  .part-bar-wrap { margin-top: 14px; }
+  .part-bar-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .part-bar-bg { background: #e2e8f0; border-radius: 6px; height: 8px; overflow: hidden; }
+  .part-bar-fill { height: 100%; background: var(--green); border-radius: 6px; transition: width 1s ease; }
+
+  /* Chart */
+  .chart-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+
+  .chart-card h3 { font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .5px; }
+
+  .chart-wrap { position: relative; height: 320px; }
+
+  /* Table */
+  .table-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+
+  .table-card h3 { font-size: 14px; font-weight: 600; color: var(--muted); padding: 16px 20px 12px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  thead th.num { text-align: right; }
+
+  tbody tr { transition: background .15s; }
+  tbody tr:hover { background: #f8fafc; }
+  tbody tr.top1 { background: #eff6ff; }
+
+  tbody td { padding: 10px 16px; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+  tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody td.party { font-weight: 500; }
+
+  .pct-cell { display: flex; align-items: center; gap: 8px; }
+  .mini-bar-bg { flex: 1; background: #e2e8f0; border-radius: 3px; height: 6px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; background: var(--onpe-blue); border-radius: 3px; transition: width 1s ease; }
+
+  .special-row td { color: var(--muted); font-style: italic; }
+  .special-row .mini-bar-fill { background: #94a3b8; }
+
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: var(--muted);
+    margin-right: 6px;
+  }
+
+  .rank-badge.gold   { background: #fbbf24; color: #78350f; }
+  .rank-badge.silver { background: #cbd5e1; color: #334155; }
+  .rank-badge.bronze { background: #d97706; color: #fff; }
+
+  .spinner {
+    display: none;
+    width: 20px; height: 20px;
+    border: 3px solid #e2e8f0;
+    border-top-color: var(--onpe-blue);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin-left: 10px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">ONPE<span>.</span></div>
+  <div class="header-title">
+    <h1>Resultados Electorales por Mesa</h1>
+    <p>Elecciones Generales 2026 — Consulta de Actas</p>
+  </div>
+</header>
+
+<main>
+  <div class="search-card">
+    <h2>Buscar Mesa de Votación</h2>
+    <div class="search-row">
+      <div class="field">
+        <label for="mesaInput">Código de Mesa (6 dígitos)</label>
+        <input type="text" id="mesaInput" maxlength="6" placeholder="000000"
+               pattern="[0-9]{1,6}" inputmode="numeric"
+               title="Ingrese hasta 6 dígitos">
+      </div>
+      <button id="searchBtn" onclick="buscarMesa()">Consultar</button>
+      <div class="spinner" id="spinner"></div>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="tabs" id="tabs"></div>
+    <div id="electionContent"></div>
+  </div>
+</main>
+
+<footer>Datos obtenidos en tiempo real desde ONPE — Oficina Nacional de Procesos Electorales</footer>
+
+<script>
+let currentData = null;
+let chart = null;
+
+const v  = p => p.adVotos ?? 0;
+const pv = p => (p.adPorcentajeVotosValidos  ?? 0).toFixed(2);
+const pe = p => (p.adPorcentajeVotosEmitidos ?? 0).toFixed(2);
+
+const input = document.getElementById('mesaInput');
+const btn   = document.getElementById('searchBtn');
+const spin  = document.getElementById('spinner');
+const errEl = document.getElementById('errorMsg');
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter') buscarMesa(); });
+input.addEventListener('input', () => {
+  input.value = input.value.replace(/\D/g, '');
+});
+
+async function buscarMesa() {
+  const codigo = input.value.trim().padStart(6, '0');
+  if (input.value.trim() === '') { showError('Ingrese un código de mesa.'); return; }
+
+  setLoading(true);
+  hideError();
+
+  try {
+    const res = await fetch(`/api/mesa?codigoMesa=${encodeURIComponent(codigo)}`);
+    const json = await res.json();
+    if (!res.ok || json.error) { showError(json.error || 'No se encontraron resultados.'); return; }
+    currentData = json.data;
+    renderResults(currentData);
+  } catch (e) {
+    showError('Error de conexión. Intente nuevamente.');
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderResults(data) {
+  document.getElementById('results').style.display = 'block';
+  const tabs = document.getElementById('tabs');
+  const content = document.getElementById('electionContent');
+
+  tabs.innerHTML = data.map((m, i) =>
+    `<div class="tab ${i===0?'active':''}" onclick="showElection(${i})">${esc(m.nombreEleccion || 'Elección ' + m.idEleccion)}</div>`
+  ).join('');
+
+  showElection(0);
+}
+
+function showElection(idx) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===idx));
+  const mesa = currentData[idx];
+  const content = document.getElementById('electionContent');
+
+  const parties = mesa.detalle.filter(p => p.adGrafico === 1).sort((a,b) => v(b) - v(a));
+  const specials = mesa.detalle.filter(p => p.adGrafico !== 1);
+  const pct = mesa.porcentajeParticipacionCiudadana || 0;
+  const maxVotes = v(parties[0]) || 1;
+
+  const statusClass = mesa.codigoEstadoActa === 'C' ? 'ok' : 'warn';
+  const statusDot = mesa.codigoEstadoActa === 'C' ? '●' : '◐';
+
+  content.innerHTML = `
+    <div class="info-card">
+      <div class="info-header">
+        <div>
+          <div class="info-name">${esc(mesa.nombreLocalVotacion)}</div>
+          <div class="info-location">Mesa ${esc(mesa.codigoMesa)} &mdash; ${esc(mesa.centroPoblado)}</div>
+        </div>
+        <div class="status-badge ${statusClass}">${statusDot} ${esc(mesa.descripcionEstadoActa)}</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat"><div class="stat-value">${mesa.totalElectoresHabiles.toLocaleString()}</div><div class="stat-label">Electores Hábiles</div></div>
+        <div class="stat"><div class="stat-value">${mesa.totalVotosEmitidos.toLocaleString()}</div><div class="stat-label">Votos Emitidos</div></div>
+        <div class="stat"><div class="stat-value">${mesa.totalVotosValidos.toLocaleString()}</div><div class="stat-label">Votos Válidos</div></div>
+        <div class="stat"><div class="stat-value pct">${pct.toFixed(1)}%</div><div class="stat-label">Participación</div></div>
+      </div>
+      <div class="part-bar-wrap">
+        <div class="part-bar-label"><span>Participación ciudadana</span><span>${pct.toFixed(2)}%</span></div>
+        <div class="part-bar-bg"><div class="part-bar-fill" id="partBar" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <h3>Votos Válidos por Organización Política</h3>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <h3>Detalle de Votos</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Organización Política</th>
+            <th class="num">Votos</th>
+            <th>% Válidos</th>
+            <th class="num">% Emitidos</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${parties.map((p,i) => `
+          <tr class="${i===0?'top1':''}">
+            <td><span class="rank-badge ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${i+1}</span></td>
+            <td class="party">${esc(p.adDescripcion)}</td>
+            <td class="num"><strong>${v(p)}</strong></td>
+            <td>
+              <div class="pct-cell">
+                <span style="min-width:48px">${pv(p)}%</span>
+                <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${(v(p)/maxVotes*100).toFixed(1)}%"></div></div>
+              </div>
+            </td>
+            <td class="num">${pe(p)}%</td>
+          </tr>`).join('')}
+          ${specials.map(p => `
+          <tr class="special-row">
+            <td></td>
+            <td class="party">${esc(p.adDescripcion)}</td>
+            <td class="num">${v(p)}</td>
+            <td>
+              <div class="pct-cell">
+                <span style="min-width:48px">${pv(p)}%</span>
+                <div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${(v(p)/maxVotes*100).toFixed(1)}%"></div></div>
+              </div>
+            </td>
+            <td class="num">${pe(p)}%</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  setTimeout(() => {
+    document.getElementById('partBar').style.width = pct + '%';
+  }, 50);
+
+  drawChart(parties, mesa.idEleccion);
+}
+
+function drawChart(parties, electionId) {
+  if (chart) { chart.destroy(); chart = null; }
+  const top = parties.filter(p => p.adVotos > 0).slice(0, 20);
+  if (!top.length) return;
+
+  const ctx = document.getElementById('barChart').getContext('2d');
+  const colors = top.map((_, i) => {
+    const hue = (i * 29 + 210) % 360;
+    return `hsl(${hue},65%,45%)`;
+  });
+
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: top.map(p => p.adDescripcion.length > 30 ? p.adDescripcion.slice(0, 28) + '…' : p.adDescripcion),
+      datasets: [{
+        label: 'Votos válidos',
+        data: top.map(p => v(p)),
+        backgroundColor: colors,
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.raw} votos (${pv(top[ctx.dataIndex])}% válidos)`
+          }
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
+          ticks: { font: { size: 12 } }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { size: 12 } }
+        }
+      }
+    }
+  });
+}
+
+function setLoading(on) {
+  btn.disabled = on;
+  btn.textContent = on ? 'Consultando…' : 'Consultar';
+  spin.style.display = on ? 'block' : 'none';
+}
+
+function showError(msg) {
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+}
+
+function hideError() { errEl.style.display = 'none'; }
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
