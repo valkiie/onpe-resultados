@@ -105,29 +105,44 @@ def scraper_status():
 
 @app.route("/api/stats/overview")
 def api_overview():
-    return jsonify(stats_overview())
+    try:
+        return jsonify(stats_overview())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/stats/parties")
 def api_parties():
-    eid   = int(request.args.get("eleccion", 10))
-    limit = int(request.args.get("limit", 30))
-    return jsonify(stats_parties(eid, limit))
+    try:
+        eid   = int(request.args.get("eleccion", 10))
+        limit = int(request.args.get("limit", 30))
+        return jsonify(stats_parties(eid, limit))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/stats/participation")
 def api_participation():
-    return jsonify(stats_participation_buckets())
+    try:
+        return jsonify(stats_participation_buckets())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/stats/acta_status")
 def api_acta_status():
-    return jsonify(stats_acta_status())
+    try:
+        return jsonify(stats_acta_status())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/stats/elecciones")
 def api_elecciones():
-    return jsonify(stats_elecciones())
+    try:
+        return jsonify(stats_elecciones())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Bootstrap ────────────────────────────────────────────────────────────────

@@ -128,7 +128,7 @@ def stats_parties(id_eleccion=10, limit=30):
         rows = s.execute(text("""
             SELECT nombre_partido, SUM(votos) as total, AVG(pct_validos) as pct
             FROM resultados
-            WHERE id_eleccion=:e AND es_partido=1
+            WHERE id_eleccion=:e AND es_partido=TRUE
             GROUP BY nombre_partido
             ORDER BY total DESC
             LIMIT :l
@@ -169,7 +169,7 @@ def stats_elecciones():
     with get_session() as s:
         rows = s.execute(text("""
             SELECT id_eleccion, nombre_eleccion, SUM(votos) as total
-            FROM resultados WHERE es_partido=1
+            FROM resultados WHERE es_partido=TRUE
             GROUP BY id_eleccion, nombre_eleccion ORDER BY id_eleccion
         """)).fetchall()
         return [{"id": r[0], "nombre": r[1], "total_votos": int(r[2] or 0)} for r in rows]
