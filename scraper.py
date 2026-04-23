@@ -122,46 +122,50 @@ def _run_scraper(start: int, end: int, workers: int):
     scanned = 0
     found = 0
 
-    codes = range(start, end + 1)
+    try:
+        codes = range(start, end + 1)
 
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        it = iter(codes)
-        while not _stop_event.is_set():
-            batch = []
-            for _ in range(batch_size):
-                c = next(it, None)
-                if c is None:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            it = iter(codes)
+            while not _stop_event.is_set():
+                batch = []
+                for _ in range(batch_size):
+                    c = next(it, None)
+                    if c is None:
+                        break
+                    batch.append(str(c).zfill(6))
+                if not batch:
                     break
-                batch.append(str(c).zfill(6))
-            if not batch:
-                break
 
-            futures = {pool.submit(fetch_mesa, c): c for c in batch}
-            for future in as_completed(futures):
-                if _stop_event.is_set():
-                    break
-                codigo = futures[future]
-                scanned += 1
-                result = future.result()
-                if result:
-                    found += 1
-                    try:
-                        with Session(engine) as db:
-                            _save_mesa(db, result)
-                    except Exception:
-                        pass
+                futures = {pool.submit(fetch_mesa, c): c for c in batch}
+                for future in as_completed(futures):
+                    if _stop_event.is_set():
+                        break
+                    futures[future]
+                    scanned += 1
+                    result = future.result()
+                    if result:
+                        found += 1
+                        try:
+                            with Session(engine) as db:
+                                _save_mesa(db, result)
+                        except Exception:
+                            pass
 
-            if scanned % 500 == 0:
-                with Session(engine) as db:
-                    _update_state(db,
-                        current_code=int(batch[-1]),
-                        total_scanned=scanned,
-                        total_found=found,
-                    )
+                if scanned % 500 == 0:
+                    with Session(engine) as db:
+                        _update_state(db,
+                            current_code=int(batch[-1]),
+                            total_scanned=scanned,
+                            total_found=found,
+                        )
 
-    status = "stopped" if _stop_event.is_set() else "done"
-    with Session(engine) as db:
-        _update_state(db, status=status, total_scanned=scanned, total_found=found)
+        status = "stopped" if _stop_event.is_set() else "done"
+    except Exception:
+        status = "stopped"
+    finally:
+        with Session(engine) as db:
+            _update_state(db, status=status, total_scanned=scanned, total_found=found)
 
 
 def start(start=1, end=89999, workers=20):

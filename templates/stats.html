@@ -226,6 +226,7 @@
 let chartParties = null, chartPart = null, chartStatus = null;
 let partiesData = [];
 let pollTimer = null;
+let lastFoundCount = -1;
 
 const fmt = n => (n||0).toLocaleString('es-PE');
 const pct  = n => (n||0).toFixed(1) + '%';
@@ -246,8 +247,10 @@ async function loadOverview() {
 
 function updateScraperUI(s) {
   const pill = document.getElementById('scraperPill');
-  pill.textContent = s.status;
-  pill.className   = `status-pill ${s.status}`;
+  // Use the actual thread liveness (s.running) for visual state, fall back to DB status
+  const effectiveStatus = s.running ? 'running' : (s.status === 'running' ? 'stopped' : s.status);
+  pill.textContent = effectiveStatus;
+  pill.className   = `status-pill ${effectiveStatus}`;
 
   const total = s.range_end - 0;
   const done  = s.total_scanned || 0;
@@ -258,9 +261,8 @@ function updateScraperUI(s) {
   document.getElementById('scraperInfo').textContent  =
     `Escaneadas: ${fmt(done)} | Encontradas: ${fmt(s.total_found)} | Código actual: ${String(s.current_code||0).padStart(6,'0')}`;
 
-  const running = s.status === 'running';
-  document.getElementById('btnStart').disabled = running;
-  document.getElementById('btnStop').disabled  = !running;
+  document.getElementById('btnStart').disabled = s.running;
+  document.getElementById('btnStop').disabled  = !s.running;
 }
 
 async function loadParties() {
@@ -378,12 +380,18 @@ function pollScraper() {
     const r = await fetch('/api/scraper/status');
     const s = await r.json();
     updateScraperUI(s);
+    // Update KPI cards every tick
     loadOverview();
-    loadParties();
-    loadParticipation();
-    loadActaStatus();
-    if (!s.running && s.status !== 'running') {
+    // Only redraw charts when new mesas have been found
+    if (s.total_found !== lastFoundCount) {
+      lastFoundCount = s.total_found;
+      loadParties();
+      loadParticipation();
+      loadActaStatus();
+    }
+    if (!s.running) {
       clearInterval(pollTimer);
+      pollTimer = null;
     }
   }, 3000);
 }
@@ -395,10 +403,11 @@ function esc(s) {
 async function init() {
   await loadOverview();
   await Promise.all([loadParties(), loadParticipation(), loadActaStatus()]);
-  // Auto-poll if scraper is already running
+  lastFoundCount = -1; // reset so first poll always loads charts once
+  // Auto-poll if scraper thread is alive
   const r = await fetch('/api/scraper/status');
   const s = await r.json();
-  if (s.running || s.status === 'running') pollScraper();
+  if (s.running) pollScraper();
 }
 
 init();

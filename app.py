@@ -98,7 +98,21 @@ def scraper_stop():
 @app.route("/api/scraper/status")
 def scraper_status():
     ov = stats_overview()
-    return jsonify({**ov["scraper"], "running": scraper.is_running()})
+    running = scraper.is_running()
+    state = ov["scraper"]
+    # Heal stuck "running" status when the thread is no longer alive
+    if not running and state.get("status") == "running":
+        from db import engine, ScraperState
+        from sqlalchemy.orm import Session as _Session
+        from datetime import datetime
+        with _Session(engine) as db:
+            s = db.get(ScraperState, 1)
+            if s:
+                s.status = "stopped"
+                s.updated_at = datetime.utcnow()
+                db.commit()
+        state["status"] = "stopped"
+    return jsonify({**state, "running": running})
 
 
 # ── Statistics ───────────────────────────────────────────────────────────────
